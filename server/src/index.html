@@ -1,0 +1,134 @@
+<!doctype html>
+<html>
+<head>
+<link rel="stylesheet" type="text/css" media="all" href="css/reset.css" /> <!-- reset css -->
+<meta charset="utf-8">
+<script src="http://code.jquery.com/jquery.min.js"></script>
+
+<style>
+    body{ background-color: ivory; padding:20px; }
+    canvas{ border: 1px solid #808080; }
+    canvas { background:url(layout.jpg) }
+</style>
+
+<script>
+    $(function(){
+
+        var canvas1 = document.getElementById("cvs1");
+
+        var contexts=[];
+        contexts.push(canvas1.getContext('2d'));
+
+
+        function clearAll(){
+            //Clear both canvas first
+            canvas1.width = canvas1.width
+        }
+
+        canvas1.onclick=function(e){ handleClick(e,1); };
+        //
+        function handleClick(e,contextIndex){
+            e.stopPropagation();
+
+            var mouseX=parseInt(e.clientX-e.target.offsetLeft);
+            var mouseY=parseInt(e.clientY-e.target.offsetTop);
+
+            clearAll();
+
+            for(var i=0;i<states.length;i++){
+
+                var state=states[i];
+
+                if(state.dragging){
+                    state.dragging=false;
+                    state.draw();
+                    continue;
+                }
+
+                if ( state.contextIndex==contextIndex
+                    && mouseX>state.x && mouseX<state.x+state.width
+                    && mouseY>state.y && mouseY<state.y+state.height)
+                {
+                    state.dragging=true;
+                    state.offsetX=mouseX-state.x;
+                    state.offsetY=mouseY-state.y;
+                    state.contextIndex=contextIndex;
+                }
+
+                state.draw();
+            }
+        }
+
+        canvas1.onmousemove = function(e){ handleMousemove(e,1); }
+        //
+        function handleMousemove(e,contextIndex){
+            e.stopPropagation();
+
+            var mouseX=parseInt(e.clientX-e.target.offsetLeft);
+            var mouseY=parseInt(e.clientY-e.target.offsetTop);
+
+            clearAll();
+
+            for(var i=0;i<states.length;i++){
+
+                var state=states[i];
+
+                if (state.dragging) {
+                    state.x = mouseX-state.offsetX;
+                    state.y = mouseY-state.offsetY;
+                    state.contextIndex=contextIndex;
+                }
+                state.draw();
+            }
+        }
+
+
+        var states=[];
+
+        var img=new Image();
+        // img.onload=function(){
+        //     states.push(addState(0,0,img));
+        // }
+        img.src="cloud.png";
+
+
+
+
+        function addState(x,y,image){
+                state = {}
+                state.dragging=false;
+                state.contextIndex=1;
+                state.image=image;
+                state.x=x;
+                state.y=y;
+                state.width=image.width;
+                state.height=image.height;
+                state.offsetX=0;
+                state.offsetY=0;
+                state.draw=function(){
+                    var context=contexts[this.contextIndex-1];
+                    if (this.dragging) {
+                        context.strokeStyle = 'red';
+                        context.strokeRect(this.x,this.y,this.width+5,this.height+5)
+                    }
+                    context.drawImage(this.image,this.x,this.y);
+                }
+                state.draw();
+                return(state);
+        }
+
+        $("#more").click(function(){
+            states.push(addState(0,0,img));
+        });
+
+
+    }); // end $(function(){});
+</script>
+
+</head>
+
+<body>
+  <button id="more">Add mbed</button><br>
+  <canvas height="850" width="1500" id="cvs1">[No canvas support]</canvas><br>
+</body>
+</html>	
