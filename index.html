@@ -187,7 +187,7 @@
     <button id="set">Set mbed clouds</button>
     <div clas="container">
       <h1>Event Form</h1>
-      <form method="get" style="margin-left:2rem; margin-right:2rem">
+<form method="post" action="/" style="margin-left:2rem; margin-right:2rem">
         <div class="form-group">
           <label for="mbednumber">mbed number</label>
           <select class="form-control" id="mbedselect">
@@ -195,7 +195,7 @@
         </div>
         <div class="form-group">
           <label for="sensornumber">Sensor</label>
-          <select class="form-control" id="sensorselect">
+          <select name="sensornumber" class="form-control">
             <option>Temperature</option> 
             <option>Air Quality</option>
             <option>Light</option>
@@ -205,10 +205,10 @@
           </select>
         </div>
         <label for="exampleFormControlInput1">Threshold Value</label>
-          <input type="Value" class="form-control" id="exampleFormControlInput1" placeholder="">
+          <input name="exampleFormControlInput1" type="Value" class="form-control" id="exampleFormControlInput1" placeholder="">
         <div class="form-group">
           <label for="actionnumber">Action</label>
-          <select class="form-control" id="actionselect">
+          <select class="form-control">
             <option>Send email</option> 
             <option>Turn on light/LED</option>
             <option>Cool Fridge</option>
@@ -218,8 +218,18 @@
             <option>Close Window</option>
           </select>
         </div>
-        <button type="submit" class="btn btn-primary" id="submitbtn">Submit</button>
+        <button type="submit" class="btn btn-primary">Submit</button>
       </form>
+
+
+
+
+
+
+
+
+
+
     </div>
     <div>
       <h1>Events running</h1>
