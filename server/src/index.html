@@ -1,25 +1,29 @@
-<!-- Stolen and adjusted from https://stackoverflow.com/questions/19639340/adding-more-images-to-the-canvas-to-drag-and-drop -->
-
 <!doctype html>
-<html>
-<head>
-<meta charset="utf-8">
-<script src="http://code.jquery.com/jquery.min.js"></script>
+<html lang="en">
+  <head>
+    <title>Hello, world!</title>
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <script src="http://code.jquery.com/jquery.min.js"></script>
 
-<style>
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.2/css/bootstrap.min.css" integrity="sha384-PsH8R72JQ3SOdhVi3uxftmaW6Vc51MKb0q5P2rRUpPvrszuE4W1povHYgTpBfshb" crossorigin="anonymous">
+
+
+    <style>
     body{ background-color: ivory; padding:20px; }
     canvas{ border: 1px solid #808080; }
     canvas { background:url(layout.jpg) }
-</style>
+    </style>
 
-<script>
+    <script>
     $(function(){
 
         var initialisation = true;
         var canvas = document.getElementById("cvs");
 
-        var contexts=[];
-        contexts.push(canvas.getContext('2d'));
+        var context=canvas.getContext('2d');
 
 
         function clearAll(){
@@ -45,6 +49,8 @@
                     if(state.dragging){
                         state.dragging=false;
                         state.draw();
+                        context.font = "15px Comic Sans MS";
+                        context.fillText(state.serial,state.x+state.width/4,state.y+state.height+8);
                         continue;
                     }
 
@@ -63,12 +69,13 @@
                         && mouseX>state.x && mouseX<state.x+state.width
                         && mouseY>state.y-35 && mouseY<state.y+state.height)
                     {
-                        var temp, humid, air, light;
-                        window.alert("This is mbed no."+state.serial+"\nTemperature:\t"+"\nHumidity:\t")
+                        window.alert("This is mbed no."+state.serial+"\nTemperature:\t"+"\nHumidity:\t"+"\nAir Quality:\t"+"\nLight:\t"+"\nAcceleration:\t")
                     }
 
                 }
                 state.draw();
+                context.font = "15px Comic Sans MS";
+                context.fillText(state.serial,state.x+state.width/4,state.y+state.height+8);
             }
         }
     
@@ -94,6 +101,8 @@
                         state.contextIndex=contextIndex;
                     }
                     state.draw();
+                    context.font = "15px Comic Sans MS";
+                    context.fillText(state.serial,state.x+state.width/4,state.y+state.height+8);
                 }
             }
         }
@@ -118,15 +127,17 @@
             state.offsetX=0;
             state.offsetY=0;
             state.draw=function(){
-                var context=contexts[this.contextIndex-1];
                 if (this.dragging) {
                     context.strokeStyle = 'red';
-                    context.strokeRect(this.x,this.y,this.width+5,this.height+5)
+                    context.strokeRect(this.x,this.y,this.width+5,this.height+5);
                 }
                 context.drawImage(this.image,this.x,this.y,70,50);
             }
             state.draw();
-            
+            context.font = "15px Comic Sans MS";
+            context.fillText(state.serial,state.x+state.width/4,state.y+state.height+8);
+
+
             return(state);
         }
 
@@ -137,16 +148,68 @@
 
         $("#set").click(function(){
             initialisation = false;
+            var select = document.getElementById('mbedselect');
+            for (var i = 0; i<states.length; i++){
+                var opt = document.createElement('option');
+                opt.value = states[i].serial;
+                opt.text = states[i].serial;
+                select.add(opt, null);
+            }
 
         });
     }); // end $(function(){});
-</script>
+    </script>
+  </head>
 
-</head>
 
-<body>
-  <button id="more">Add mbed</button><br>
-  <canvas height="800" width="1150" id="cvs">[No canvas support]</canvas>
-  <button id="set">Set mbed clouds</button>
-</body>
-</html>	
+  <body>
+    <button id="more">Add mbed</button><br>
+    <canvas height="800" width="1150" id="cvs">[No canvas support]</canvas><br>
+    <button id="set">Set mbed clouds</button>
+    <div clas="container">
+      <h1>Event Form</h1>
+      <form method="get" style="margin-left:2rem; margin-right:2rem">
+        <div class="form-group">
+          <label for="mbednumber">mbed number</label>
+          <select class="form-control" id="mbedselect">
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="sensornumber">Sensor</label>
+          <select class="form-control">
+            <option>Temperature</option> 
+            <option>Air Quality</option>
+            <option>Light</option>
+            <option>Distance</option>
+            <option>Accelerationr</option>
+            <option>Humidity</option>
+          </select>
+        </div>
+        <label for="exampleFormControlInput1">Threshold Value</label>
+          <input type="Value" class="form-control" id="exampleFormControlInput1" placeholder="">
+        <div class="form-group">
+          <label for="actionnumber">Action</label>
+          <select class="form-control">
+            <option>Send email</option> 
+            <option>Turn on light/LED</option>
+            <option>Cool Fridge</option>
+            <option>Call Police</option>
+            <option>Call Firefighters</option>
+            <option>Open Window</option>
+            <option>Close Window</option>
+          </select>
+        </div>
+        <button type="submit" class="btn btn-primary">Submit</button>
+      </form>
+    </div>
+    <div>
+      <h1>Events running</h1>
+      
+    </div>
+    <!-- Optional JavaScript -->
+    <!-- jQuery first, then Popper.js, then Bootstrap JS -->
+    <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.3/umd/popper.min.js" integrity="sha384-vFJXuSJphROIrBnz7yo7oB41mKfc8JzQZiCq4NCceLEaO4IHwicKwpJf9c9IpFgh" crossorigin="anonymous"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.2/js/bootstrap.min.js" integrity="sha384-alpBpkh1PFOepccYVYDB4do5UnbKysX5WZXm3XxPqe5iKTfUKjNkCk9SaVuEZflJ" crossorigin="anonymous"></script>
+  </body>
+</html>
