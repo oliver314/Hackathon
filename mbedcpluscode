@@ -1,0 +1,384 @@
+//----------------------------------------------------------------------------
+// The confidential and proprietary information contained in this file may
+// only be used by a person authorised under and to the extent permitted
+// by a subsisting licensing agreement from ARM Limited or its affiliates.
+//
+// (C) COPYRIGHT 2016 ARM Limited or its affiliates.
+// ALL RIGHTS RESERVED
+//
+// This entire notice must be reproduced on all copies of this file
+// and copies of this file may only be made by a person if such person is
+// permitted to do so under the terms of a subsisting license agreement
+// from ARM Limited or its affiliates.
+//----------------------------------------------------------------------------
+
+
+//Note for the JSON interface with the server:
+// {id:%macaddress%} is sent first
+// queries for events are the sole requests, but also have the form {query : 1}
+// if there are events they should be expressed as:
+// {"create": %event_id%, "temp_s": %threshold%, "heat_b": %threshold%, "end": "end"}
+// where arbitary amounts of events can be processed at once.
+// the syntax for deletion is {delete : %eventid%} Note: no end specifier.
+
+// events are {event : %eventid%}       NOTE STILL NEED TO DELETE THE TRIGGER EVENT (but maybe not do for the presentation?)
+// polls are {mbed_id : %mac_address%, sensor readings...}
+
+
+//NOTE UPDATE SEND TO SERVER AND GET FROM SERVER WITH IP ADDRESS OF SERVER!
+
+
+#include "mbed.h"
+#include "C12832.h"
+#include "CCS811.h"
+#include "Sht31.h"
+#include "TSL2561.h"
+#include "MMA7660.h"
+#include "OdinWiFiInterface.h"
+#include "http_request.h"
+#include <map>
+
+#include <vector>
+#include <string>
+#include <sstream>
+
+
+struct EventB
+{
+    long event_id;
+
+    bool c_temp;
+    float s_temp, b_temp;
+    bool c_humd;
+    float s_humd, b_humd;
+
+    bool c_xacc;
+    float s_xacc, b_xacc;
+    bool c_yacc;
+    float s_yacc, b_yacc;
+    bool c_zacc;
+    float s_zacc, b_zacc;
+
+    bool c_visi;
+    float s_visi, b_visi;
+    bool c_infa;
+    float s_infa, b_infa;
+};
+
+struct Readings
+{
+    float temp;
+    float humd;
+    float xacc;
+    float yacc;
+    float zacc;
+    float visi;
+    float infa;
+};
+
+// GLOBAL VARIABLES HERE
+Sht31   temp_sensor(PF_0, PF_1);
+MMA7660 accel(PF_0, PF_1);
+TSL2561 light_sensor(PF_0, PF_1, TSL2561_ADDR_HIGH);
+C12832  lcd(PE_14, PE_12, PD_12, PD_11, PE_9);
+OdinWiFiInterface wifi;
+
+std::vector<EventB> event_bindings;
+
+// FUNCTION DEFINTIONS HERE
+std::string to_string(int val)
+{
+    std::stringstream ss;
+    ss << val;
+    return ss.str();
+}
+
+float to_float(std::string stra)
+{
+    std::stringstream temp;
+    temp << stra;
+    float x;
+    temp >> x;
+    return x;
+}
+
+void lcd_print(const char* message) {
+    lcd.cls();
+    lcd.locate(0, 3);
+    lcd.printf(message);
+}
+
+void send_to_server(const char *json)
+{
+    //lcd_print("sending");
+    NetworkInterface* net = &wifi;
+    HttpRequest* request = new HttpRequest(net, HTTP_POST, "http://10.25.1.211:8080/mbed");
+    request->set_header("Content-Type", "application/json");;
+    HttpResponse* response = request->send(json, strlen(json));
+    delete request;
+    //lcd_print("sent");
+}
+
+std::string check_server()
+{
+    NetworkInterface* net = &wifi;
+    HttpRequest* request = new HttpRequest(net, HTTP_GET, "http://10.25.1.211:8080/mbed");
+    request->set_header("Content-Type", "application/json");;
+    std::string query = std::string("{\"query\":\"")+wifi.get_mac_address()+"\"}";
+    lcd_print(query.c_str());
+    HttpResponse* response = request->send(query.c_str(), strlen(query.c_str()));
+    delete request;
+    return std::string(response->get_body_as_string().c_str());
+}
+
+std::string jsonit(const std::vector<std::string> &names, const std::vector<float> &vals)
+{
+    std::string result = "{";
+    for (int i = 0; i < names.size(); i++)
+    {
+        result += '"';
+        result += names[i];
+        result += '"';
+        result += ':';
+        result += to_string(vals[i]);
+        result += ',';
+    }
+    lcd_print(result.c_str());
+    result.erase(result.size()-1, 1); //erases the last character (would use pop_back but no c++11...)
+    result += '}';
+
+    return result;
+}
+
+void dejson(std::vector<std::string> &names, std::vector<float> &vals, std::string stra) //not proper, obviously (but fit for purpose).
+{
+    std::string buffer;
+    for (int i = 0; i < stra.size(); i++)
+    {
+        char c = stra[i];
+        if (c != '{' && c != ' ' && c != '"'){
+        if (c == ':')
+        {
+            names.push_back(buffer);
+            buffer = "";
+        }
+        else if (c == ',' || c == '}')
+        {
+            vals.push_back(to_float(buffer));
+            buffer = "";
+        }
+        else
+        {
+            buffer += c;
+        }}
+    }
+}
+
+void add_event(EventB eb)
+{
+    event_bindings.push_back(eb);
+}
+
+void del_event(long e_id) //note could optimize by sorting, but meh - small lists...
+{
+    for (int i = 0; i < event_bindings.size(); i++)
+    {
+        EventB e_b = event_bindings[i];
+        if (e_b.event_id == e_id)
+        {
+            event_bindings.erase(event_bindings.begin()+i);
+        }
+        break;
+    }
+}
+
+void poll_s_event() //request the server for any events (
+{
+    std::string json = check_server();
+    if (json == "{}")
+    {
+        return;
+    }
+
+    std::vector<std::string> names;
+    std::vector<float> vals;
+    for (int i=0; i < names.size(); i++)
+    {
+        std::string name = names[i];
+        if (name == "delete")
+        {
+            del_event(long(vals[i]));
+        }
+        else if (name == "create")
+        {
+            long id = long(vals[i]);
+            bool ct = false; float st = 0; float bt = 0;
+            bool ch = false; float sh = 0; float bh = 0;
+            bool cx = false; float sx = 0; float bx = 0;
+            bool cy = false; float sy = 0; float by = 0;
+            bool cz = false; float sz = 0; float bz = 0;
+            bool cv = false; float sv = 0; float bv = 0;
+            bool ci = false; float si = 0; float bi = 0;
+            i++;
+            for (; i < names.size(); i++)
+            {
+                if (name == "temp_s"){st = vals[i]; ct = true;}
+                else if (name == "temp_b"){bt = vals[i]; ct = true;}
+                else if (name == "humd_s"){sh = vals[i]; ch = true;}
+                else if (name == "humd_b"){bh = vals[i]; ch = true;}
+                else if (name == "xacc_s"){sx = vals[i]; cx = true;}
+                else if (name == "xacc_b"){bx = vals[i]; cx = true;}
+                else if (name == "yacc_s"){sy = vals[i]; cy = true;}
+                else if (name == "yacc_b"){by = vals[i]; cy = true;}
+                else if (name == "zacc_s"){sz = vals[i]; cz = true;}
+                else if (name == "zacc_b"){bz = vals[i]; cz = true;}
+                else if (name == "visi_s"){sv = vals[i]; cv = true;}
+                else if (name == "visi_b"){bv = vals[i]; cv = true;}
+                else if (name == "infa_s"){si = vals[i]; ci = true;}
+                else if (name == "infa_b"){bi = vals[i]; ci = true;}
+
+                else if (name == "end")
+                {
+                    EventB e_b = {.event_id = id,
+                                  .c_temp = ct, .s_temp = st, .b_temp = bt,
+                                  .c_humd = ch, .s_humd = sh, .b_humd = bh,
+                                  .c_xacc = cx, .s_xacc = sx, .b_xacc = bx,
+                                  .c_yacc = cy, .s_yacc = sy, .b_yacc = by,
+                                  .c_zacc = cz, .s_zacc = sz, .b_zacc = bz,
+                                  .c_visi = cv, .s_visi = sv, .b_visi = bv,
+                                  .c_infa = ci, .s_infa = si, .b_infa = bi};
+                    add_event(e_b);
+                    break;
+                }
+            }
+        }
+    }
+}
+
+Readings poll_sensors() //get a sensor reading
+{
+    Readings rar = {.temp = temp_sensor.readTemperature(),
+                    .humd = temp_sensor.readHumidity(),
+                    .xacc = accel.x(),
+                    .yacc = accel.y(),
+                    .zacc = accel.z(),
+                    .visi = light_sensor.getLuminosity(TSL2561_VISIBLE),
+                    .infa = light_sensor.getLuminosity(TSL2561_INFRARED)};
+    return rar;
+}
+
+void send_sensor_readings()
+{
+    Readings r = poll_sensors();
+    std::vector<std::string> names;
+    names.push_back("temp"); names.push_back("humd"); names.push_back("xacc");
+    names.push_back("yacc"); names.push_back("zacc"); names.push_back("visi");
+    names.push_back("infa");
+    std::vector<float> vals;
+    vals.push_back(r.temp); vals.push_back(r.humd); vals.push_back(r.xacc);
+    vals.push_back(r.yacc); vals.push_back(r.zacc); vals.push_back(r.visi);
+    vals.push_back(r.infa);
+    std::string almost = jsonit(names, vals);
+    almost.erase(0,1); //remove the early curly bracket
+    std::string to_send = std::string("{\"mbed_id\" : \"") + wifi.get_mac_address() + "\"," +  almost;
+    send_to_server(to_send.c_str());
+}
+
+void eventcall(int id)  //call the event, i.e. flag to the server
+{
+    char buffer[20];
+    sprintf(buffer, "%s %d", "event triggered:", id);
+    std::string jcode = std::string("{\"event\":")  + to_string(id) + "}";
+    send_to_server(jcode.c_str());
+    //lcd_print(buffer); //temp test message
+    // send the message to the server with the event id
+}
+
+void check_events()     //check all events to see if any are triggered
+{
+    Readings r = poll_sensors();
+    for (int i = 0; i < event_bindings.size(); i++)
+    {
+        EventB e_b = event_bindings[i];
+        bool outof = false;
+        if (e_b.c_temp && !(e_b.s_temp < r.temp && r.temp < e_b.b_temp))
+        {
+            outof = true;
+        }
+        if (e_b.c_humd && !(e_b.s_humd < r.humd && r.humd < e_b.b_humd))
+        {
+            outof = true;
+        }
+        if (e_b.c_xacc && !(e_b.s_xacc < r.xacc && r.xacc < e_b.b_xacc))
+        {
+            outof = true;
+        }
+        if (e_b.c_yacc && !(e_b.s_yacc < r.yacc && r.yacc < e_b.b_yacc))
+        {
+            outof = true;
+        }
+        if (e_b.c_zacc && !(e_b.s_zacc < r.zacc && r.zacc < e_b.b_zacc))
+        {
+            outof = true;
+        }
+        if (e_b.c_visi && !(e_b.s_visi < r.visi && r.visi < e_b.b_visi))
+        {
+            outof = true;
+        }
+        if (e_b.c_infa && !(e_b.s_infa < r.infa && r.infa < e_b.b_infa))
+        {
+            outof = true;
+        }
+        if (outof)
+        {
+            eventcall(e_b.event_id);
+        }
+        else
+        {
+            lcd_print("");
+        }
+    }
+}
+
+bool init()             //initialization, setting up wifi, and sending mac address to server
+{
+    lcd_print("connecting...");
+
+    int ret = wifi.connect(MBED_CONF_APP_WIFI_SSID, MBED_CONF_APP_WIFI_PASSWORD, NSAPI_SECURITY_WPA_WPA2);
+    if (ret != 0) {
+       lcd_print("Connection error.");
+       return false;
+    }
+    lcd_print("Successfully connected!");
+    lcd_print(wifi.get_mac_address());
+
+    send_to_server((std::string("{\"id\":\"")+wifi.get_mac_address()+"\"}").c_str()); //give the server the mbed id
+    return true;
+    // send the address to the server
+    // back will be returned many requests to make events
+}
+
+int main() {
+    //init();
+
+    //while (true)
+    //{
+    //    send_to_server("{\"yo\", 1}");
+    //    wait_ms(100);
+    //}
+
+    if (!init())
+    {
+        return -1;
+    }
+    
+    while (true)
+    {
+        wait_ms(10);
+        poll_s_event();
+        check_events();
+    }
+    // MAIN CODE HERE
+
+
+}
