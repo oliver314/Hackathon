@@ -1,4 +1,4 @@
-<!-- Stolen from https://stackoverflow.com/questions/19639340/adding-more-images-to-the-canvas-to-drag-and-drop -->
+<!-- Stolen and adjusted from https://stackoverflow.com/questions/19639340/adding-more-images-to-the-canvas-to-drag-and-drop -->
 
 <!doctype html>
 <html>
@@ -63,6 +63,7 @@
                         && mouseX>state.x && mouseX<state.x+state.width
                         && mouseY>state.y-35 && mouseY<state.y+state.height)
                     {
+                        var temp, humid, air, light;
                         window.alert("This is mbed no."+state.serial+"\nTemperature:\t"+"\nHumidity:\t")
                     }
 
@@ -126,14 +127,6 @@
             }
             state.draw();
             
-            // add cursor styling DOESN'T F$%£KING WORK
-            // state.addEventListener('mouseover', function() {
-            //     document.body.style.cursor = 'pointer';
-            // });
-            // state.addEventListener('mouseout', function() {
-            //     document.body.style.cursor = 'default';
-            // })
-
             return(state);
         }
 
@@ -153,7 +146,7 @@
 
 <body>
   <button id="more">Add mbed</button><br>
-  <canvas height="850" width="1500" id="cvs">[No canvas support]</canvas>
+  <canvas height="800" width="1150" id="cvs">[No canvas support]</canvas>
   <button id="set">Set mbed clouds</button>
 </body>
 </html>	
