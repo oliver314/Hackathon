@@ -6,15 +6,23 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <script src="http://code.jquery.com/jquery.min.js"></script>
-
+    <style>
+        
+    </style>
     <!-- Bootstrap CSS -->
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.2/css/bootstrap.min.css" integrity="sha384-PsH8R72JQ3SOdhVi3uxftmaW6Vc51MKb0q5P2rRUpPvrszuE4W1povHYgTpBfshb" crossorigin="anonymous">
 
 
     <style>
-    body{ background-color: ivory; padding:20px; }
-    canvas{ border: 1px solid #808080; }
-    canvas { background:url(layout.jpg) }
+        body{ background-color: ivory; padding:20px; }
+        canvas{ border: 1px solid #808080; }
+        canvas { background:url(layout.jpg) }
+        th, td {padding: 15px;}
+        table, th, td {
+            border: 1px solid black;
+            border-collapse: collapse;
+        }
+        table {border-spacing: 5px;}
     </style>
 
     <script>
@@ -155,7 +163,18 @@
                 opt.text = states[i].serial;
                 select.add(opt, null);
             }
+        });
 
+        $("#submitbtn").click(function(){
+            var table = document.getElementById('runningEvents');
+            var newRow = table.insertRow(4);
+            var headerIDs = ["mbedselect","sensorselect","exampleFormControlInput1","actionselect"];
+            for (var i = 0; i<4; i++){
+                var newCell = newRow.insertCell(i);
+                var sel = document.getElementById(headerIDs[i]);
+                var cellText = sel.options[sel.selectedIndex].text;
+                newCell.appendChild(cellText);
+            }
         });
     }); // end $(function(){});
     </script>
@@ -176,7 +195,7 @@
         </div>
         <div class="form-group">
           <label for="sensornumber">Sensor</label>
-          <select class="form-control">
+          <select class="form-control" id="sensorselect">
             <option>Temperature</option> 
             <option>Air Quality</option>
             <option>Light</option>
@@ -189,7 +208,7 @@
           <input type="Value" class="form-control" id="exampleFormControlInput1" placeholder="">
         <div class="form-group">
           <label for="actionnumber">Action</label>
-          <select class="form-control">
+          <select class="form-control" id="actionselect">
             <option>Send email</option> 
             <option>Turn on light/LED</option>
             <option>Cool Fridge</option>
@@ -199,11 +218,19 @@
             <option>Close Window</option>
           </select>
         </div>
-        <button type="submit" class="btn btn-primary">Submit</button>
+        <button type="submit" class="btn btn-primary" id="submitbtn">Submit</button>
       </form>
     </div>
     <div>
       <h1>Events running</h1>
+      <table id="runningEvents">
+        <tr>
+            <th>mbed no</th>
+            <th>Sensor</th>
+            <th>Threshold</th>
+            <th>Action</th>
+        </tr>
+      </table>
       
     </div>
     <!-- Optional JavaScript -->

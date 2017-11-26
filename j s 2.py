@@ -99,4 +99,4 @@ if __name__ == "__main__":
         try:
             httpd.serve_forever()
         except KeyboardInterrupt:
-            print(" Recieved Shutting Down")
+            print(" Received Shutting Down")
