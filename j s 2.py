@@ -2,9 +2,55 @@ from http.server import *
 import socketserver
 import socket
 import time
+import json
 import sqlite3
 
 
+def clear_queue(mbed_id):
+    for event in event_queues[mbed_id]:
+        pass
+
+
+def msend(mbed_id, conditions, eventid):
+    event = [("create", event_id),] + conditions + [("end", 1)]
+    string = "{"
+    for name, val in event:
+        string += '"'+str(name)+'":'+str(val)+','
+    string[-1] = '}'
+    event_queus[mbed_id]
+
+
+def bind_event(mbed_id, conditions, action):
+    event = {'mbed_id' : mbed_id,
+             'conditions' : conditions,
+             'action' : action}
+    eid = id(event)
+    try:
+        msend(mbed_id, conditions, eid)
+    except Exception as E:
+        print(E)
+        pass ##need exeception handling here!
+    else:
+        events[eid] = event
+        mbeds_eids[mbedid].add(eid)
+
+def rebind_e(mbed_id, event):
+    _, conditions, eid = event
+    try:
+        msend(mbedid, conditions, eid)
+    except Exception as E:
+        print(E)
+        pass
+
+def event_response(event_id):
+    action = events[event_id]['action']
+    del events[event_id]
+    action()
+
+def mbed_reload(mbed_id):
+    for eid in mbeds_eids:
+        event = events[eid]
+        rebind_e(mbedid, event)
 
 def saveData(id, data):
     conn = sqlite3.connect('databasename.db')
@@ -40,7 +86,7 @@ def getData(id, sensor, start, end):
     for r in value:
         values.append(r[2])
     return values
- 
+
     #saveData('id2',{"air":5, "light":3})
     #saveData('id1',{"air":7, "light":5})
     print(getData("id2","air", -1,-1)) #gives all time value of mbed 2 air quality
@@ -48,24 +94,29 @@ def getData(id, sensor, start, end):
     print(getData("id1",-1, -1,-1)) #gives all time all sensors value of mbed 1
 
 class Handler(BaseHTTPRequestHandler):
+
+
     def do_GET(self):
         try:
             if self.path == "/":
                 self.send_file("index.html", "text/html")
             else:
                 self.send_file(self.path[1:])
-            if self.path == "/":
-                pass  
         except Exception as e:
             print(e)
 
     def do_POST(self):
         self.send_response(200)
         length = int(self.headers["content-length"])
+        if self.path == "/mbed":
+
+        print('Hello')
         data = self.rfile.read(length)
         print(data)
-        json1_data = json.loads(data)[0]
-        saveEvent(json1_data['mbetnumber'],json1_data['sensornumber'],json1_data['tresh'],json1_data['actionnumber'])
+        json_data = json.loads(data)
+
+
+        saveEvent(json_data['mbetnumber'],json_data['sensornumber'],json_data['tresh'],json_data['actionnumber'])
         self.send_file("index.html", "text/html")
 
     def send_file(self, filename, encoding=None):
